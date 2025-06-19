@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "formulahendry.auto-rename-tag",
+    "streetsidesoftware.code-spell-checker",
+    "naumovs.color-highlight",
+    "dsznajder.es7-react-js-snippets",
+    "usernamehw.errorlens",
+    "wix.vscode-import-cost",
+    "pkief.material-icon-theme",
+    "christian-kohler.path-intellisense",
+    "coenraads.bracket-pair-colorizer-2",
+    "oderwat.indent-rainbow"
+  ]
+}
