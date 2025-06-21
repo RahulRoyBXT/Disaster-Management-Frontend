@@ -2,117 +2,58 @@ import { Filter, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { getAllResources } from '@/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ResourceCard } from '@/routes/Resources/ResourceCard';
 import { ResourcePortal } from '@/routes/Resources/ResourcePortal';
 
-// Sample resources data
-const SAMPLE_RESOURCES = [
-  {
-    id: '1',
-    name: 'Water Purification Kits',
-    type: 'supplies',
-    quantity: 500,
-    location: 'Central Distribution Center',
-    status: 'available',
-  },
-  {
-    id: '2',
-    name: 'Emergency Response Team',
-    type: 'personnel',
-    quantity: 25,
-    location: 'Manhattan West',
-    status: 'deployed',
-  },
-  {
-    id: '3',
-    name: 'Evacuation Shelters',
-    type: 'facility',
-    quantity: 8,
-    location: 'Various Locations',
-    status: 'active',
-  },
-  {
-    id: '4',
-    name: 'Fire Engines',
-    type: 'vehicle',
-    quantity: 30,
-    location: 'Fire Stations',
-    status: 'deployed',
-  },
-  {
-    id: '5',
-    name: 'Firefighters',
-    type: 'personnel',
-    quantity: 200,
-    location: 'Various Locations',
-    status: 'active',
-  },
-  {
-    id: '6',
-    name: 'Aerial Water Tankers',
-    type: 'vehicle',
-    quantity: 5,
-    location: 'County Airport',
-    status: 'standby',
-  },
-  {
-    id: '7',
-    name: 'Medical Supplies',
-    type: 'supplies',
-    quantity: 1200,
-    location: 'Medical Warehouse',
-    status: 'available',
-  },
-  {
-    id: '8',
-    name: 'Power Generators',
-    type: 'supplies',
-    quantity: 45,
-    location: 'Equipment Storage',
-    status: 'depleted',
-  },
-  {
-    id: '9',
-    name: 'Search and Rescue Teams',
-    type: 'personnel',
-    quantity: 15,
-    location: 'Various Locations',
-    status: 'standby',
-  },
-  {
-    id: '10',
-    name: 'Mobile Command Centers',
-    type: 'facility',
-    quantity: 3,
-    location: 'Police HQ',
-    status: 'active',
-  },
-];
-
-// Resource types and statuses for filtering
-const RESOURCE_TYPES = ['supplies', 'personnel', 'vehicle', 'facility'];
-const RESOURCE_STATUSES = ['available', 'deployed', 'active', 'standby', 'depleted'];
+// Resource types for filtering
+const RESOURCE_TYPES = ['shelter', 'supplies', 'personnel', 'vehicle', 'facility', 'medical'];
 
 export default function ResourcesPage() {
   const [resources, setResources] = useState([]);
   const [filteredResources, setFilteredResources] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [showResourcePortal, setShowResourcePortal] = useState(false);
   const [selectedResource, setSelectedResource] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Load resources on mount (simulating API call)
+  // Load resources data
   useEffect(() => {
-    // In a real app, this would be an API call
-    setResources(SAMPLE_RESOURCES);
-    setFilteredResources(SAMPLE_RESOURCES);
+    const fetchResources = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await getAllResources();
+        console.log('resource data', response);
+
+        // Check if data exists and is an array
+        if (response && response.data) {
+          const resourceData = Array.isArray(response.data) ? response.data : [];
+          setResources(resourceData);
+          setFilteredResources(resourceData);
+        } else {
+          setResources([]);
+          setFilteredResources([]);
+        }
+      } catch (error) {
+        console.error('Error fetching resources:', error);
+        setError('Failed to load resources');
+        setResources([]);
+        setFilteredResources([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResources();
   }, []);
 
-  // Filter resources based on search term and selected filters
+  // Filter resources based on search term and selected types
   useEffect(() => {
     let result = resources;
 
@@ -121,9 +62,9 @@ export default function ResourcesPage() {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         resource =>
-          resource.name.toLowerCase().includes(term) ||
-          resource.location.toLowerCase().includes(term) ||
-          resource.type.toLowerCase().includes(term)
+          (resource.name?.toLowerCase() || '').includes(term) ||
+          (resource.locationName?.toLowerCase() || '').includes(term) ||
+          (resource.type?.toLowerCase() || '').includes(term)
       );
     }
 
@@ -132,25 +73,13 @@ export default function ResourcesPage() {
       result = result.filter(resource => selectedTypes.includes(resource.type));
     }
 
-    // Filter by statuses
-    if (selectedStatuses.length > 0) {
-      result = result.filter(resource => selectedStatuses.includes(resource.status));
-    }
-
     setFilteredResources(result);
-  }, [resources, searchTerm, selectedTypes, selectedStatuses]);
+  }, [resources, searchTerm, selectedTypes]);
 
   // Toggle type selection
   const toggleType = type => {
     setSelectedTypes(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
-  };
-
-  // Toggle status selection
-  const toggleStatus = status => {
-    setSelectedStatuses(prev =>
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
     );
   };
 
@@ -211,52 +140,76 @@ export default function ResourcesPage() {
             </Badge>
           ))}
         </div>
-
-        <div className="flex items-center mb-2">
-          <Filter className="h-4 w-4 mr-2" />
-          <h2 className="text-sm font-medium">Filter by status:</h2>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {RESOURCE_STATUSES.map(status => (
-            <Badge
-              key={status}
-              variant={selectedStatuses.includes(status) ? 'default' : 'outline'}
-              className="cursor-pointer capitalize"
-              onClick={() => toggleStatus(status)}
-            >
-              {status}
-            </Badge>
-          ))}
-        </div>
       </div>
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="text-center py-12">
+          <div
+            className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"
+            role="status"
+          >
+            <span className="sr-only">Loading...</span>
+          </div>
+          <p className="mt-4 text-lg">Loading resources...</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!isLoading && error && (
+        <div className="text-center py-12">
+          <p className="text-destructive text-lg">{error}</p>
+          <Button className="mt-4" onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      )}
 
       {/* Results count */}
-      <p className="text-sm text-muted-foreground mb-4">
-        Showing {filteredResources.length} of {resources.length} resources
-      </p>
+      {!isLoading && !error && (
+        <p className="text-sm text-muted-foreground mb-4">
+          Showing {filteredResources.length} of {resources.length} resources
+        </p>
+      )}
 
       {/* Resource cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredResources.map(resource => (
-          <ResourceCard
-            key={resource.id}
-            resource={resource}
-            onClick={() => openResourcePortal(resource)}
-          />
-        ))}
+      {!isLoading && !error && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredResources.map(resource => (
+            <ResourceCard
+              key={resource.id}
+              resource={{
+                ...resource,
+                // Add these for backward compatibility with ResourceCard component
+                location: resource.locationName || 'Unknown location',
+                status: resource.createdAt ? new Date(resource.createdAt).toLocaleDateString() : '',
+              }}
+              onClick={() => openResourcePortal(resource)}
+            />
+          ))}
 
-        {filteredResources.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <h3 className="text-lg font-medium mb-2">No resources found</h3>
-            <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
-          </div>
-        )}
-      </div>
+          {filteredResources.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <h3 className="text-lg font-medium mb-2">No resources found</h3>
+              <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Resource Portal */}
       {showResourcePortal && selectedResource && (
-        <ResourcePortal resource={selectedResource} onClose={closeResourcePortal} />
+        <ResourcePortal
+          resource={{
+            ...selectedResource,
+            // Add these for backward compatibility with ResourcePortal component
+            location: selectedResource.locationName || 'Unknown location',
+            status: selectedResource.createdAt
+              ? new Date(selectedResource.createdAt).toLocaleDateString()
+              : '',
+          }}
+          onClose={closeResourcePortal}
+        />
       )}
     </div>
   );

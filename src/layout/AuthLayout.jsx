@@ -1,11 +1,22 @@
 import { Button } from '@/components/ui/button';
+import useAuth from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 
 export default function AuthLayout() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [bgAnimation, setBgAnimation] = useState(true);
+  const navigate = useNavigate();
+
+  const { loading, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    // Redirect to home if already authenticated
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   // Track mouse position for background effect
   useEffect(() => {
@@ -24,6 +35,14 @@ export default function AuthLayout() {
   const toggleAnimation = () => {
     setBgAnimation(!bgAnimation);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg text-gray-500">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center">

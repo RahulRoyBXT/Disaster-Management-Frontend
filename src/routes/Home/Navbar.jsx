@@ -14,13 +14,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ModeToggle } from '@/components/ui/mode-toggle';
+import useAuth from '@/hooks/useAuth';
 
-const Navbar = ({ isLoggedIn = false, username = '' }) => {
+const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  const { user, isAuthenticated } = useAuth();
+  const username = user?.username || 'Guest';
 
   const getUserInitials = name => {
     if (!name) return 'U';
@@ -74,6 +77,34 @@ const Navbar = ({ isLoggedIn = false, username = '' }) => {
               >
                 Disasters
               </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="px-3 py-2 rounded-md text-sm font-medium">
+                    Reports
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem asChild>
+                    <Link to="/reports">All Reports</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/reports/social-media">Social Media Updates</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/reports/official-updates">Official Updates</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/reports/priority-alerts">Priority Alerts</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/reports/create">Submit Report</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/reports/verification">Verify Reports</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Link
                 to="/resources"
                 className="text-foreground hover:bg-muted px-3 py-2 rounded-md text-sm font-medium"
@@ -93,7 +124,7 @@ const Navbar = ({ isLoggedIn = false, username = '' }) => {
           <div className="hidden md:flex items-center space-x-4">
             <ModeToggle />
 
-            {isLoggedIn ? (
+            {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
@@ -120,7 +151,12 @@ const Navbar = ({ isLoggedIn = false, username = '' }) => {
                     <span>Change Password</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      console.log('logout');
+                      logoutUser();
+                    }}
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>
@@ -167,6 +203,51 @@ const Navbar = ({ isLoggedIn = false, username = '' }) => {
             >
               Disasters
             </Link>
+            <div className="space-y-1 px-3 py-1">
+              <p className="text-foreground font-medium px-2 py-1">Reports</p>
+              <Link
+                to="/reports"
+                className="block text-foreground hover:bg-muted px-3 py-2 rounded-md text-sm font-medium pl-4"
+                onClick={toggleMenu}
+              >
+                All Reports
+              </Link>
+              <Link
+                to="/reports/social-media"
+                className="block text-foreground hover:bg-muted px-3 py-2 rounded-md text-sm font-medium pl-4"
+                onClick={toggleMenu}
+              >
+                Social Media Updates
+              </Link>
+              <Link
+                to="/reports/official-updates"
+                className="block text-foreground hover:bg-muted px-3 py-2 rounded-md text-sm font-medium pl-4"
+                onClick={toggleMenu}
+              >
+                Official Updates
+              </Link>
+              <Link
+                to="/reports/priority-alerts"
+                className="block text-foreground hover:bg-muted px-3 py-2 rounded-md text-sm font-medium pl-4"
+                onClick={toggleMenu}
+              >
+                Priority Alerts
+              </Link>
+              <Link
+                to="/reports/create"
+                className="block text-foreground hover:bg-muted px-3 py-2 rounded-md text-sm font-medium pl-4"
+                onClick={toggleMenu}
+              >
+                Submit Report
+              </Link>
+              <Link
+                to="/reports/verification"
+                className="block text-foreground hover:bg-muted px-3 py-2 rounded-md text-sm font-medium pl-4"
+                onClick={toggleMenu}
+              >
+                Verify Reports
+              </Link>
+            </div>
             <Link
               to="/resources"
               className="block text-foreground hover:bg-muted px-3 py-2 rounded-md text-base font-medium"
@@ -186,7 +267,7 @@ const Navbar = ({ isLoggedIn = false, username = '' }) => {
           {/* Mobile authentication */}
           <div className="pt-4 pb-3 border-t border-border dark:border-gray-800">
             <div className="px-4 space-y-2">
-              {isLoggedIn ? (
+              {isAuthenticated ? (
                 <>
                   <div className="flex items-center mb-4">
                     <div className="flex-shrink-0">
@@ -217,7 +298,7 @@ const Navbar = ({ isLoggedIn = false, username = '' }) => {
                     </Link>
                   </Button>
                   <Button variant="ghost" className="w-full justify-start text-destructive" asChild>
-                    <Link onClick={logoutUser}>
+                    <Link onClick={() => logoutUser()}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Log out
                     </Link>

@@ -2,6 +2,7 @@ import { Filter, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { getAllDisasters } from '@/api';
 import { DisasterCard } from '@/components/DisasterCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -131,32 +132,54 @@ export function DisasterGrid() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [selectedSeverity, setSelectedSeverity] = useState('');
-
-  // Load disasters on mount (simulating API call)
+  // Load disasters on mount
   useEffect(() => {
-    // In a real app, this would be an API call
-    setDisasters(SAMPLE_DISASTERS);
-    setFilteredDisasters(SAMPLE_DISASTERS);
+    fetchDisasters();
   }, []);
+
+  const fetchDisasters = async () => {
+    try {
+      const response = await getAllDisasters();
+      console.log('disaster data', response);
+      // Ensure response.data is an array
+      const disasterArray = Array.isArray(response.data) ? response.data : [];
+      setDisasters(disasterArray);
+      setFilteredDisasters(disasterArray);
+    } catch (error) {
+      console.error('Error fetching disasters:', error);
+      // Fallback to sample data if API fails
+      setDisasters(SAMPLE_DISASTERS);
+      setFilteredDisasters(SAMPLE_DISASTERS);
+    }
+  };
+
+  // Handle disaster deletion
+  const handleDisasterDeleted = deletedId => {
+    // Remove the deleted disaster from both disasters and filteredDisasters
+    setDisasters(prev => prev.filter(disaster => disaster.id !== deletedId));
+    setFilteredDisasters(prev => prev.filter(disaster => disaster.id !== deletedId));
+  };
 
   // Filter disasters based on search term and selected tags
   useEffect(() => {
-    let result = disasters;
-
-    // Filter by search term
+    let result = disasters; // Filter by search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         disaster =>
-          disaster.title.toLowerCase().includes(term) ||
-          disaster.location_name.toLowerCase().includes(term) ||
-          disaster.description.toLowerCase().includes(term)
+          disaster.title?.toLowerCase().includes(term) ||
+          disaster.locationName?.toLowerCase().includes(term) ||
+          disaster.location_name?.toLowerCase().includes(term) ||
+          disaster.description?.toLowerCase().includes(term)
       );
     }
 
     // Filter by tags
-    if (selectedTags.length > 0) {
-      result = result.filter(disaster => disaster.tags.some(tag => selectedTags.includes(tag)));
+    if (selectedTags?.length > 0) {
+      result = result.filter(
+        disaster =>
+          Array.isArray(disaster.tags) && disaster.tags.some(tag => selectedTags.includes(tag))
+      );
     }
 
     // Filter by severity
@@ -202,7 +225,6 @@ export function DisasterGrid() {
           </Button>
         </div>
       </div>
-
       {/* Filters */}
       <div className="mb-6">
         <div className="flex items-center mb-2">
@@ -252,20 +274,23 @@ export function DisasterGrid() {
             </Badge>
           ))}
         </div>
-      </div>
-
+      </div>{' '}
       {/* Results count */}
       <p className="text-sm text-muted-foreground mb-4">
-        Showing {filteredDisasters.length} of {disasters.length} disasters
+        Showing {filteredDisasters?.length || 0} of {disasters?.length || 0} disasters
       </p>
-
       {/* Disaster cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDisasters.map(disaster => (
-          <DisasterCard key={disaster.id} disaster={disaster} />
-        ))}
-
-        {filteredDisasters.length === 0 && (
+        {' '}
+        {Array.isArray(filteredDisasters) && filteredDisasters.length > 0 ? (
+          filteredDisasters.map(disaster => (
+            <DisasterCard
+              key={disaster.id || Math.random().toString()}
+              disaster={disaster}
+              onDisasterDeleted={handleDisasterDeleted}
+            />
+          ))
+        ) : (
           <div className="col-span-full text-center py-12">
             <h3 className="text-lg font-medium mb-2">No disasters found</h3>
             <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>

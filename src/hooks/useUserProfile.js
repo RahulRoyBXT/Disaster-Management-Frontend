@@ -1,4 +1,4 @@
-import { fetchUserProfile } from '@/api';
+import { fetchProfile } from '@/api';
 import useAuthStore from '@/store/authStore';
 import { useQuery } from '@tanstack/react-query';
 
@@ -9,7 +9,7 @@ const useUserProfile = () => {
 
   return useQuery({
     queryKey: ['userProfile'],
-    queryFn: fetchUserProfile,
+    queryFn: fetchProfile,
     onSuccess: data => {
       setUser(data);
       setLoading(false);

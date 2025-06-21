@@ -1,8 +1,8 @@
 import { AlertCircle, ArrowLeft, Save } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { createResource } from '@/api';
+import { getResource, updateResource } from '@/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,10 +24,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-export function CreateResourceForm() {
+export function ResourceUpdateForm() {
+  const { disasterId, resourceId } = useParams();
   const navigate = useNavigate();
-  const { disasterId } = useParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Form state
@@ -40,12 +41,49 @@ export function CreateResourceForm() {
     description: '',
   });
 
+  // Load existing resource data
+  useEffect(() => {
+    const fetchResourceData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await getResource(resourceId);
+
+        if (response && response.data) {
+          const resource = response.data;
+
+          // Set form data with existing values
+          setFormData({
+            name: resource.name || '',
+            type: resource.type || 'supplies',
+            quantity: resource.quantity || 1,
+            location: resource.location || '',
+            status: resource.status || 'available',
+            description: resource.description || '',
+          });
+        } else {
+          setError('Resource data not found');
+        }
+      } catch (error) {
+        console.error('Error fetching resource:', error);
+        setError('Failed to load resource data. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (resourceId) {
+      fetchResourceData();
+    }
+  }, [resourceId]);
+
   // Handle input changes
   const handleInputChange = e => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'quantity' ? parseInt(value, 10) || 1 : value,
     }));
   };
 
@@ -56,6 +94,7 @@ export function CreateResourceForm() {
       [name]: value,
     }));
   };
+
   // Handle form submission
   const handleSubmit = async e => {
     e.preventDefault();
@@ -66,49 +105,56 @@ export function CreateResourceForm() {
       // Prepare the resource data for API
       const resourceData = {
         ...formData,
-        quantity: parseInt(formData.quantity, 10),
         disasterId: disasterId, // Include disaster ID
       };
 
-      // Call the API to create the resource
-      const response = await createResource(resourceData);
+      await updateResource(resourceId, resourceData);
 
-      console.log('Resource created successfully:', response);
+      console.log('Resource updated successfully');
 
       // Navigate back to disaster resources page
-      if (disasterId) {
-        navigate(`/disasters/${disasterId}/resources`);
-      } else {
-        navigate('/resources');
-      }
+      navigate(`/disasters/${disasterId}/resources`);
     } catch (err) {
-      console.error('Error creating resource:', err);
-      setError(err.message || 'Failed to create resource. Please try again.');
+      console.error('Error updating resource:', err);
+      setError(err.message || 'Failed to update resource. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 max-w-3xl">
+        <div className="text-center py-12">
+          <div
+            className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"
+            role="progressbar"
+          >
+            <span className="sr-only">Loading...</span>
+          </div>
+          <p className="mt-4 text-lg">Loading resource data...</p>
+        </div>
+      </div>
+    );
+  }
+
   const navigateBack = () => {
-    if (disasterId) {
-      navigate(`/disasters/${disasterId}/resources`);
-    } else {
-      navigate('/resources');
-    }
+    navigate(`/disasters/${disasterId}/resources`);
   };
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
       <Button variant="outline" className="mb-6" onClick={navigateBack}>
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
+        Back to Resources
       </Button>
 
       <Card>
         <CardHeader>
-          <CardTitle>Create New Resource</CardTitle>
+          <CardTitle>Update Resource</CardTitle>
           <CardDescription>
-            Add a new resource to {disasterId ? 'this disaster' : 'the system'} for coordination and
-            response.
+            Update the resource details for disaster coordination and response.
           </CardDescription>
         </CardHeader>
 
@@ -149,6 +195,8 @@ export function CreateResourceForm() {
                     <SelectItem value="personnel">Personnel</SelectItem>
                     <SelectItem value="vehicle">Vehicle</SelectItem>
                     <SelectItem value="facility">Facility</SelectItem>
+                    <SelectItem value="medical">Medical</SelectItem>
+                    <SelectItem value="shelter">Shelter</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -181,6 +229,7 @@ export function CreateResourceForm() {
                   name="quantity"
                   type="number"
                   min="1"
+                  placeholder="e.g., 100"
                   value={formData.quantity}
                   onChange={handleInputChange}
                   required
@@ -205,10 +254,10 @@ export function CreateResourceForm() {
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Provide details about the resource..."
+                placeholder="Additional details about the resource..."
                 value={formData.description}
                 onChange={handleInputChange}
-                rows={4}
+                rows={3}
               />
             </div>
           </CardContent>
@@ -219,11 +268,11 @@ export function CreateResourceForm() {
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
-                'Creating...'
+                'Updating...'
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Create Resource
+                  Update Resource
                 </>
               )}
             </Button>
@@ -233,3 +282,5 @@ export function CreateResourceForm() {
     </div>
   );
 }
+
+export default ResourceUpdateForm;

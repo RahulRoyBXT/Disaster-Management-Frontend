@@ -1,8 +1,8 @@
 import { AlertCircle, ArrowLeft, Save } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { createDisaster } from '@/api';
+import { getDisaster, updateDisaster } from '@/api';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -44,11 +44,14 @@ const AVAILABLE_TAGS = [
   'urgent',
 ];
 
-export function CreateDisasterForm() {
+export function DisasterUpdateForm() {
+  const { disasterId } = useParams();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
+
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -58,6 +61,49 @@ export function CreateDisasterForm() {
     latitude: null,
     longitude: null,
   });
+
+  // Load existing disaster data
+  useEffect(() => {
+    const fetchDisasterData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await getDisaster(disasterId);
+
+        if (response && response.data) {
+          const disaster = response.data;
+
+          // Set form data with existing values
+          setFormData({
+            title: disaster.title || '',
+            locationName: disaster.locationName || disaster.location_name || '',
+            description: disaster.description || '',
+            severity: (disaster.severity || 'MEDIUM').toUpperCase(),
+            latitude: disaster.latitude || null,
+            longitude: disaster.longitude || null,
+          });
+
+          // Set selected tags
+          if (Array.isArray(disaster.tags)) {
+            setSelectedTags(disaster.tags);
+          }
+        } else {
+          setError('Disaster data not found');
+        }
+      } catch (error) {
+        console.error('Error fetching disaster:', error);
+        setError('Failed to load disaster data. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (disasterId) {
+      fetchDisasterData();
+    }
+  }, [disasterId]);
+
   // Handle input changes
   const handleInputChange = e => {
     const { name, value } = e.target;
@@ -76,6 +122,7 @@ export function CreateDisasterForm() {
       }));
     }
   };
+
   // Handle severity selection
   const handleSeverityChange = value => {
     // Convert to uppercase for API consistency
@@ -84,12 +131,12 @@ export function CreateDisasterForm() {
       severity: value?.toUpperCase(),
     }));
   };
-  // Coordinates are handled by the handleInputChange function
 
   // Toggle tag selection
   const toggleTag = tag => {
     setSelectedTags(prev => (prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]));
   };
+
   // Handle form submission
   const handleSubmit = async e => {
     e.preventDefault();
@@ -102,47 +149,55 @@ export function CreateDisasterForm() {
         title: formData.title,
         locationName: formData.locationName,
         description: formData.description,
-        severity: formData.severity,
-        tags: selectedTags,
       };
 
-      // Add coordinates if provided
-      if (formData.latitude !== null && formData.longitude !== null) {
-        disasterData.latitude = formData.latitude;
-        disasterData.longitude = formData.longitude;
-      }
+      // Call the API to update the disaster
+      const response = await updateDisaster(disasterId, disasterData);
 
-      // Call the API to create the disaster
-      const response = await createDisaster(disasterData);
+      console.log('Disaster updated successfully:', response);
 
-      console.log('Disaster created successfully:', response);
-
-      // Navigate to the disaster details page or disasters list
-      if (response.data && response.data.id) {
-        navigate(`/disasters/${response.data.id}`);
-      } else {
-        navigate('/disasters');
-      }
+      // Navigate to the disaster details page
+      navigate(`/disasters/${disasterId}`);
     } catch (err) {
-      console.error('Error creating disaster:', err);
-      setError(err.message || 'Failed to create disaster. Please try again.');
+      console.error('Error updating disaster:', err);
+      setError(err.message || 'Failed to update disaster. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 max-w-3xl">
+        <div className="text-center py-12">
+          <div
+            className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"
+            role="progressbar"
+          >
+            <span className="sr-only">Loading...</span>
+          </div>
+          <p className="mt-4 text-lg">Loading disaster data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 max-w-3xl">
-      <Button variant="outline" className="mb-6" onClick={() => navigate('/disasters')}>
+      <Button
+        variant="outline"
+        className="mb-6"
+        onClick={() => navigate(`/disasters/${disasterId}`)}
+      >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Disasters
+        Back to Disaster Details
       </Button>
-
       <Card>
         <CardHeader>
-          <CardTitle>Create New Disaster</CardTitle>
+          <CardTitle>Update Disaster</CardTitle>
           <CardDescription>
-            Add a new disaster to the system for coordination and response.
+            Update the disaster details for coordination and response.
           </CardDescription>
         </CardHeader>
 
@@ -165,7 +220,7 @@ export function CreateDisasterForm() {
                 onChange={handleInputChange}
                 required
               />
-            </div>{' '}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="locationName">Location</Label>
               <Input
@@ -215,7 +270,7 @@ export function CreateDisasterForm() {
                 required
                 rows={5}
               />
-            </div>{' '}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="severity">Severity</Label>
               <Select value={formData.severity} onValueChange={handleSeverityChange}>
@@ -253,16 +308,20 @@ export function CreateDisasterForm() {
           </CardContent>
 
           <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline" onClick={() => navigate('/disasters')}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(`/disasters/${disasterId}`)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || selectedTags.length === 0}>
               {isSubmitting ? (
-                'Creating...'
+                'Updating...'
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Create Disaster
+                  Update Disaster
                 </>
               )}
             </Button>
@@ -272,3 +331,5 @@ export function CreateDisasterForm() {
     </div>
   );
 }
+
+export default DisasterUpdateForm;

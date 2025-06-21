@@ -1,7 +1,7 @@
-import { registerUser } from '@/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import useAuth from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -14,6 +14,8 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
   });
+
+  const { register, fetchUserProfile } = useAuth();
 
   const navigate = useNavigate();
 
@@ -29,7 +31,6 @@ export default function SignupPage() {
       setError(null);
     }
   };
-
   const handleSubmit = async e => {
     e.preventDefault();
 
@@ -58,13 +59,24 @@ export default function SignupPage() {
 
     try {
       // Remove confirmPassword before sending
-      const { confirmPassword: _, ...userData } = formData;
+      const { confirmPassword, ...userData } = formData; // eslint-disable-line no-unused-vars
 
       // Register user
-      await registerUser(userData);
+      const success = await register(userData);
 
-      // Redirect on success
-      navigate('/', { replace: true });
+      if (success) {
+        // Login after successful registration
+        // await login({
+        //   username: formData.username,
+        //   password: formData.password,
+        // });
+        fetchUserProfile();
+
+        // Redirect on success
+        navigate('/', { replace: true });
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {

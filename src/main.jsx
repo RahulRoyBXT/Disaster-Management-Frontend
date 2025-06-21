@@ -1,11 +1,16 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
+import './index.css';
+
+import AppInitializer from './Auth/AppInitializer';
+import AuthChecker from './Auth/AuthChecker';
 import ActionErrorDemo from './components/ActionErrorDemo';
 import { CreateDisasterForm } from './components/CreateDisasterForm';
 import { DisasterGrid } from './components/DisasterGrid';
 import ErrorPage from './components/ErrorPage';
 import { ThemeProvider } from './components/ui/theme-provider';
-import './index.css';
 import AuthLayout from './layout/AuthLayout';
 import { DisasterDetailsLayout } from './layout/DisasterDetailsLayout';
 import { DisasterLayout } from './layout/DisasterLayout';
@@ -15,6 +20,8 @@ import { ResourcesLayout } from './layout/ResourcesLayout';
 import { AboutPage } from './routes/About/AboutPage';
 import LoginPage from './routes/Auth/Login/LoginPage';
 import SignupPage from './routes/Auth/Signup/SignupPage';
+import DisasterResourcesPage from './routes/Disaster/DisasterResourcesPage';
+import DisasterUpdateForm from './routes/Disaster/DisasterUpdateForm';
 import DisasterDetailsPage from './routes/DisasterDetails/DisasterDetailsPage';
 import HeroSection from './routes/Home/HeroSection';
 import { CreateReportForm } from './routes/Reports/CreateReportForm';
@@ -25,9 +32,7 @@ import ReportVerification from './routes/Reports/ReportVerification';
 import SocialMediaUpdates from './routes/Reports/SocialMediaUpdates';
 import { CreateResourceForm } from './routes/Resources/CreateResourceForm';
 import ResourcesPage from './routes/Resources/ResourcesPage';
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import AuthChecker from './Auth/AuthChecker';
+import ResourceUpdateForm from './routes/Resources/ResourceUpdateForm';
 
 const queryClient = new QueryClient();
 
@@ -101,10 +106,38 @@ const router = createBrowserRouter([
         element: <DisasterDetailsPage />,
       },
       {
+        path: 'edit',
+        element: (
+          <AuthChecker>
+            <DisasterUpdateForm />
+          </AuthChecker>
+        ),
+      },
+      {
+        path: 'resources',
+        element: <DisasterResourcesPage />,
+      },
+      {
         path: 'resources/create',
         element: (
           <AuthChecker>
             <CreateResourceForm />
+          </AuthChecker>
+        ),
+      },
+      {
+        path: 'resources/:resourceId/edit',
+        element: (
+          <AuthChecker>
+            <ResourceUpdateForm />
+          </AuthChecker>
+        ),
+      },
+      {
+        path: 'update',
+        element: (
+          <AuthChecker>
+            <DisasterUpdateForm />
           </AuthChecker>
         ),
       },
@@ -185,7 +218,9 @@ const router = createBrowserRouter([
 createRoot(document.getElementById('root')).render(
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system">
-      <RouterProvider router={router} />
+      <AppInitializer>
+        <RouterProvider router={router} />
+      </AppInitializer>
     </ThemeProvider>
   </QueryClientProvider>
 );

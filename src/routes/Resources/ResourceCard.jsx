@@ -9,7 +9,7 @@ export function ResourceCard({ resource, onClick }) {
 
   // Get status styling
   const getStatusStyles = status => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'available':
         return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
       case 'deployed':
@@ -27,7 +27,7 @@ export function ResourceCard({ resource, onClick }) {
 
   // Get type icon
   const getTypeIcon = type => {
-    switch (type.toLowerCase()) {
+    switch (type?.toLowerCase()) {
       case 'supplies':
         return <Package2 className="h-5 w-5" />;
       case 'vehicle':

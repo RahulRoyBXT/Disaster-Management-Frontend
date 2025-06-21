@@ -2,6 +2,7 @@ import { AlertTriangle, Calendar, Edit, MapPin, Plus, Tag, Trash2 } from 'lucide
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { deleteDisaster, getDisaster } from '@/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,27 +96,33 @@ export default function DisasterDetailsPage() {
   const [error, setError] = useState(null);
   const [showResourcePortal, setShowResourcePortal] = useState(false);
   const [selectedResource, setSelectedResource] = useState(null);
-
   useEffect(() => {
-    // Simulate API call to fetch disaster details
-    setIsLoading(true);
-    setError(null);
-
-    setTimeout(() => {
-      const foundDisaster = SAMPLE_DISASTERS.find(d => d.id === disasterId);
-
-      if (foundDisaster) {
-        setDisaster(foundDisaster);
+    const fetchDisasters = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await getDisaster(disasterId);
+        console.log('disaster data', response);
+        // Check if data exists and set it directly
+        if (response && response.data) {
+          setDisaster(response.data);
+        } else {
+          setError('Disaster data not found');
+        }
         setIsLoading(false);
-      } else {
+      } catch (error) {
+        console.error('Error fetching disaster:', error);
         setError('Disaster not found');
         setIsLoading(false);
       }
-    }, 500);
-  }, [disasterId]);
+    };
 
+    fetchDisasters();
+  }, [disasterId]);
   // Format date
   const formatDate = dateString => {
+    if (!dateString) return 'No date available';
+
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -124,18 +131,22 @@ export default function DisasterDetailsPage() {
       minute: '2-digit',
     });
   };
-
   // Handle delete disaster
-  const handleDeleteDisaster = () => {
+  const handleDeleteDisaster = async () => {
     if (
       window.confirm('Are you sure you want to delete this disaster? This action cannot be undone.')
     ) {
-      // In a real app, this would be an API call
-      console.log('Deleting disaster:', disasterId);
-      navigate('/disasters');
+      try {
+        // Call the API to delete the disaster
+        const response = await deleteDisaster(disasterId);
+        console.log('Disaster deleted successfully:', response);
+        navigate('/disasters');
+      } catch (error) {
+        console.error('Error deleting disaster:', error);
+        setError('Failed to delete disaster. Please try again.');
+      }
     }
   };
-
   // Handle update disaster
   const handleUpdateDisaster = () => {
     navigate(`/disasters/${disasterId}/edit`);
@@ -155,7 +166,7 @@ export default function DisasterDetailsPage() {
 
   // Determine severity styling
   const getSeverityClass = severity => {
-    switch (severity.toLowerCase()) {
+    switch (severity?.toLowerCase()) {
       case 'low':
         return 'border-blue-500 bg-blue-50 dark:bg-blue-900/20';
       case 'medium':
@@ -170,7 +181,7 @@ export default function DisasterDetailsPage() {
   };
 
   const getSeverityTextClass = severity => {
-    switch (severity.toLowerCase()) {
+    switch (severity?.toLowerCase()) {
       case 'low':
         return 'text-blue-700 dark:text-blue-400';
       case 'medium':
@@ -190,7 +201,7 @@ export default function DisasterDetailsPage() {
         <div className="text-center py-12">
           <div
             className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"
-            role="status"
+            role="progressbar"
           >
             <span className="sr-only">Loading...</span>
           </div>
@@ -255,18 +266,21 @@ export default function DisasterDetailsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
+              {' '}
               <CardTitle className="text-2xl md:text-3xl">{disaster.title}</CardTitle>
               <CardDescription className="mt-2">
                 <div className="flex items-center">
                   <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <span>{disaster.location_name}</span>
+                  <span>
+                    {disaster.locationName || disaster.location_name || 'Unknown location'}
+                  </span>
                 </div>
                 <div className="flex items-center mt-1">
                   <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <span>{formatDate(disaster.created_at)}</span>
+                  <span>{formatDate(disaster.createdAt || disaster.created_at)}</span>
                 </div>
               </CardDescription>
-            </div>
+            </div>{' '}
             <div
               className={cn(
                 'px-3 py-1 rounded-full text-sm font-medium',
@@ -275,14 +289,15 @@ export default function DisasterDetailsPage() {
             >
               <div className="flex items-center">
                 <AlertTriangle className="h-4 w-4 mr-1" />
-                <span className="capitalize">{disaster.severity}</span>
+                <span className="capitalize">{disaster.severity || 'Unknown'}</span>
               </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
+          {' '}
           <div className="flex flex-wrap gap-2 mb-4">
-            {disaster.tags.map((tag, index) => (
+            {disaster?.tags?.map((tag, index) => (
               <Badge key={index} variant="secondary">
                 <Tag className="h-3.5 w-3.5 mr-1" />
                 {tag}
@@ -290,6 +305,22 @@ export default function DisasterDetailsPage() {
             ))}
           </div>
           <p className="text-foreground whitespace-pre-line">{disaster.description}</p>
+          {/* Display coordinates if available */}
+          {(disaster.latitude || disaster.longitude) && (
+            <div className="mt-4 p-4 bg-muted rounded-md">
+              <h3 className="text-sm font-medium mb-2">Coordinates</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-xs text-muted-foreground">Latitude:</span>
+                  <p className="font-mono">{disaster.latitude}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Longitude:</span>
+                  <p className="font-mono">{disaster.longitude}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -305,7 +336,7 @@ export default function DisasterDetailsPage() {
 
         {disaster.resources && disaster.resources.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {disaster.resources.map(resource => (
+            {disaster.resources?.map(resource => (
               <ResourceCard
                 key={resource.id}
                 resource={resource}

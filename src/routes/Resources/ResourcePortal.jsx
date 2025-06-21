@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 
-export function ResourcePortal({ resource, disasterId, onClose }) {
+export function ResourcePortal({ resource, disasterId, onClose, onEdit, onDelete }) {
   const [mounted, setMounted] = useState(false);
   const navigate = useNavigate();
 
@@ -105,16 +105,21 @@ export function ResourcePortal({ resource, disasterId, onClose }) {
         return <AlertCircle className="h-6 w-6" />;
     }
   };
-
   // Handle edit resource
   const handleEditResource = () => {
-    navigate(`/disasters/${disasterId}/resources/${resource.id}/edit`);
-    onClose();
+    if (onEdit) {
+      onEdit(resource.id);
+    } else {
+      navigate(`/disasters/${disasterId}/resources/${resource.id}/edit`);
+      onClose();
+    }
   };
 
   // Handle delete resource
   const handleDeleteResource = () => {
-    if (
+    if (onDelete) {
+      onDelete(resource.id);
+    } else if (
       window.confirm('Are you sure you want to delete this resource? This action cannot be undone.')
     ) {
       console.log('Deleting resource:', resource.id);

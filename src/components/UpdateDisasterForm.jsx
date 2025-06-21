@@ -1,28 +1,27 @@
 import { AlertCircle, ArrowLeft, Save } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { createDisaster } from '@/api';
-
+import { getDisaster, updateDisaster } from '@/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -42,13 +41,19 @@ const AVAILABLE_TAGS = [
   'alert',
   'monitoring',
   'urgent',
+  'plane crash',
+  'death',
 ];
 
-export function CreateDisasterForm() {
+export function UpdateDisasterForm() {
+  const { disasterId } = useParams();
   const navigate = useNavigate();
+
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
+
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -58,6 +63,46 @@ export function CreateDisasterForm() {
     latitude: null,
     longitude: null,
   });
+
+  // Fetch existing disaster data
+  useEffect(() => {
+    const fetchDisaster = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getDisaster(disasterId);
+
+        if (response && response.data) {
+          const disaster = response.data;
+
+          // Set form data from disaster
+          setFormData({
+            title: disaster.title || '',
+            locationName: disaster.locationName || '',
+            description: disaster.description || '',
+            severity: disaster.severity || 'MEDIUM',
+            latitude: disaster.latitude || null,
+            longitude: disaster.longitude || null,
+          });
+
+          // Set tags
+          if (disaster.tags && Array.isArray(disaster.tags)) {
+            setSelectedTags(disaster.tags);
+          }
+        }
+
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching disaster:', err);
+        setError('Failed to load disaster details. Please try again.');
+        setIsLoading(false);
+      }
+    };
+
+    if (disasterId) {
+      fetchDisaster();
+    }
+  }, [disasterId]);
+
   // Handle input changes
   const handleInputChange = e => {
     const { name, value } = e.target;
@@ -76,6 +121,7 @@ export function CreateDisasterForm() {
       }));
     }
   };
+
   // Handle severity selection
   const handleSeverityChange = value => {
     // Convert to uppercase for API consistency
@@ -84,12 +130,12 @@ export function CreateDisasterForm() {
       severity: value?.toUpperCase(),
     }));
   };
-  // Coordinates are handled by the handleInputChange function
 
   // Toggle tag selection
   const toggleTag = tag => {
     setSelectedTags(prev => (prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]));
   };
+
   // Handle form submission
   const handleSubmit = async e => {
     e.preventDefault();
@@ -112,37 +158,53 @@ export function CreateDisasterForm() {
         disasterData.longitude = formData.longitude;
       }
 
-      // Call the API to create the disaster
-      const response = await createDisaster(disasterData);
+      // Call the API to update the disaster
+      const response = await updateDisaster(disasterId, disasterData);
 
-      console.log('Disaster created successfully:', response);
+      console.log('Disaster updated successfully:', response);
 
-      // Navigate to the disaster details page or disasters list
-      if (response.data && response.data.id) {
-        navigate(`/disasters/${response.data.id}`);
-      } else {
-        navigate('/disasters');
-      }
+      // Navigate to the disaster details page
+      navigate(`/disasters/${disasterId}`);
     } catch (err) {
-      console.error('Error creating disaster:', err);
-      setError(err.message || 'Failed to create disaster. Please try again.');
+      console.error('Error updating disaster:', err);
+      setError(err.message || 'Failed to update disaster. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 max-w-3xl">
+        <div className="text-center py-12">
+          <div
+            className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"
+            role="progressbar"
+          >
+            <span className="sr-only">Loading...</span>
+          </div>
+          <p className="text-muted-foreground mt-2">Loading disaster details...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 max-w-3xl">
-      <Button variant="outline" className="mb-6" onClick={() => navigate('/disasters')}>
+      <Button
+        variant="outline"
+        className="mb-6"
+        onClick={() => navigate(`/disasters/${disasterId}`)}
+      >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Disasters
+        Back to Disaster Details
       </Button>
 
       <Card>
         <CardHeader>
-          <CardTitle>Create New Disaster</CardTitle>
+          <CardTitle>Update Disaster</CardTitle>
           <CardDescription>
-            Add a new disaster to the system for coordination and response.
+            Update the details for this disaster to keep information current.
           </CardDescription>
         </CardHeader>
 
@@ -165,10 +227,11 @@ export function CreateDisasterForm() {
                 onChange={handleInputChange}
                 required
               />
-            </div>{' '}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="locationName">Location</Label>
               <Input
+                disabled="true"
                 id="locationName"
                 name="locationName"
                 placeholder="e.g., Manhattan, NYC"
@@ -181,6 +244,7 @@ export function CreateDisasterForm() {
               <div className="space-y-2">
                 <Label htmlFor="latitude">Latitude (optional)</Label>
                 <Input
+                  disabled="true"
                   id="latitude"
                   name="latitude"
                   type="number"
@@ -215,14 +279,18 @@ export function CreateDisasterForm() {
                 required
                 rows={5}
               />
-            </div>{' '}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="severity">Severity</Label>
-              <Select value={formData.severity} onValueChange={handleSeverityChange}>
+              <Select
+                disabled="true"
+                value={formData.severity}
+                onValueChange={handleSeverityChange}
+              >
                 <SelectTrigger id="severity">
                   <SelectValue placeholder="Select severity" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent disabled="true">
                   <SelectItem value="LOW">Low</SelectItem>
                   <SelectItem value="MEDIUM">Medium</SelectItem>
                   <SelectItem value="HIGH">High</SelectItem>
@@ -246,23 +314,27 @@ export function CreateDisasterForm() {
               </div>
               {selectedTags.length === 0 && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  Select at least one tag to categorize the disaster
+                  Disaster is already Categorized
                 </p>
               )}
             </div>
           </CardContent>
 
           <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline" onClick={() => navigate('/disasters')}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(`/disasters/${disasterId}`)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || selectedTags.length === 0}>
               {isSubmitting ? (
-                'Creating...'
+                'Updating...'
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Create Disaster
+                  Update Disaster
                 </>
               )}
             </Button>

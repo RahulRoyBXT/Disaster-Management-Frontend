@@ -1,104 +1,18 @@
 import { AlertTriangle, FileText, Filter, Plus, Search, Twitter } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { getAllReports } from '@/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-// Sample report data - in a real app, this would come from an API
-const SAMPLE_REPORTS = [
-  {
-    id: '1',
-    disaster_id: '1',
-    user_id: 'citizen1',
-    content: 'Need food and water in Lower East Side. Several buildings flooded.',
-    image_url: 'https://placehold.co/600x400/2563eb/ffffff?text=Flood+Image',
-    verification_status: 'verified',
-    created_at: '2025-06-18T14:30:00Z',
-    tags: ['food', 'water', 'urgent'],
-  },
-  {
-    id: '2',
-    disaster_id: '2',
-    user_id: 'firstResponder42',
-    content: 'Road blocked by fallen trees on Highway 101 north of Santa Rosa.',
-    image_url: 'https://placehold.co/600x400/2563eb/ffffff?text=Wildfire+Image',
-    verification_status: 'pending',
-    created_at: '2025-06-17T10:15:00Z',
-    tags: ['road', 'evacuation', 'wildfire'],
-  },
-  {
-    id: '3',
-    disaster_id: '3',
-    user_id: 'houston_resident',
-    content: 'Hurricane shutters needed in southwest Houston. Can anyone help?',
-    image_url: 'https://placehold.co/600x400/2563eb/ffffff?text=Hurricane+Image',
-    verification_status: 'verified',
-    created_at: '2025-06-16T16:45:00Z',
-    tags: ['shelter', 'preparation'],
-  },
-  {
-    id: '4',
-    disaster_id: '4',
-    user_id: 'chicagoHelper',
-    content: 'Power outage in north side. Temperature dropping inside homes.',
-    image_url: 'https://placehold.co/600x400/2563eb/ffffff?text=Winter+Storm+Image',
-    verification_status: 'unverified',
-    created_at: '2025-06-14T08:20:00Z',
-    tags: ['power', 'heat', 'urgent'],
-  },
-  {
-    id: '5',
-    disaster_id: '5',
-    user_id: 'miami_emergency',
-    content: 'Public shelter open at Miami Central High School. Space for 200 people.',
-    image_url: 'https://placehold.co/600x400/2563eb/ffffff?text=Tornado+Image',
-    verification_status: 'verified',
-    created_at: '2025-06-16T12:10:00Z',
-    tags: ['shelter', 'tornado'],
-  },
-  {
-    id: '6',
-    disaster_id: '6',
-    user_id: 'seattleEngineer',
-    content: 'Structural damage to Fremont Bridge. Avoid crossing until inspected.',
-    image_url: 'https://placehold.co/600x400/2563eb/ffffff?text=Earthquake+Image',
-    verification_status: 'verified',
-    created_at: '2025-06-15T22:05:00Z',
-    tags: ['infrastructure', 'safety', 'urgent'],
-  },
-];
-
-// Available filter tags
-const ALL_TAGS = [
-  'food',
-  'water',
-  'urgent',
-  'road',
-  'evacuation',
-  'wildfire',
-  'shelter',
-  'preparation',
-  'power',
-  'heat',
-  'tornado',
-  'infrastructure',
-  'safety',
-];
-
 // Verification status colors
 const getVerificationColor = status => {
-  switch (status) {
+  const statusLower = status?.toLowerCase() || '';
+  switch (statusLower) {
     case 'verified':
       return 'bg-green-500';
     case 'unverified':
@@ -111,7 +25,8 @@ const getVerificationColor = status => {
 };
 
 const getVerificationBadge = status => {
-  switch (status) {
+  const statusLower = status?.toLowerCase() || '';
+  switch (statusLower) {
     case 'verified':
       return { variant: 'outline', className: 'border-green-500 text-green-500' };
     case 'unverified':
@@ -124,11 +39,46 @@ const getVerificationBadge = status => {
 };
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState(SAMPLE_REPORTS);
-  const [filteredReports, setFilteredReports] = useState(SAMPLE_REPORTS);
+  const [reports, setReports] = useState([]);
+  const [filteredReports, setFilteredReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [allTags, setAllTags] = useState([]);
+
+  // Fetch reports from API
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getAllReports();
+
+        if (response && response.data) {
+          setReports(response.data);
+
+          // Extract all unique tags from reports metadata
+          const tags = new Set();
+          response.data.forEach(report => {
+            if (report.metadata?.verificationResult?.detectedObjects) {
+              report.metadata.verificationResult.detectedObjects.forEach(tag => {
+                tags.add(tag);
+              });
+            }
+          });
+          setAllTags(Array.from(tags));
+        }
+      } catch (err) {
+        console.error('Error fetching reports:', err);
+        setError('Failed to load reports. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   // Filter reports based on search term, selected tags, and verification status
   const filterReports = () => {
@@ -139,18 +89,25 @@ export default function ReportsPage() {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         report =>
-          report.content.toLowerCase().includes(term) || report.user_id.toLowerCase().includes(term)
+          report.content?.toLowerCase().includes(term) ||
+          report.user?.username?.toLowerCase().includes(term)
       );
     }
 
     // Filter by tags
     if (selectedTags.length > 0) {
-      result = result.filter(report => report.tags.some(tag => selectedTags.includes(tag)));
+      result = result.filter(report =>
+        report.metadata?.verificationResult?.detectedObjects?.some(tag =>
+          selectedTags.includes(tag)
+        )
+      );
     }
 
     // Filter by verification status
     if (selectedStatus) {
-      result = result.filter(report => report.verification_status === selectedStatus);
+      result = result.filter(
+        report => report.verificationStatus?.toLowerCase() === selectedStatus.toLowerCase()
+      );
     }
 
     setFilteredReports(result);
@@ -178,9 +135,42 @@ export default function ReportsPage() {
   };
 
   // Apply filters when any filter criteria change
-  useState(() => {
+  useEffect(() => {
     filterReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, selectedTags, selectedStatus, reports]);
+
+  // Render loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading reports...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render error state
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <p className="text-destructive font-medium mb-2">Error</p>
+            <p className="text-muted-foreground">{error}</p>
+            <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -207,7 +197,7 @@ export default function ReportsPage() {
               Submit Report
             </Link>
           </Button>
-        </div>{' '}
+        </div>
       </div>
       {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -266,50 +256,6 @@ export default function ReportsPage() {
             </div>
           </Link>
         </Card>
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Social Media Updates</CardTitle>
-            <CardDescription>Real-time updates from social media</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button variant="outline" className="w-full" asChild>
-              <Link to="/reports/social-media">
-                <Twitter className="mr-2 h-4 w-4" />
-                View Updates
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Official Updates</CardTitle>
-            <CardDescription>Updates from government and relief agencies</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button variant="outline" className="w-full" asChild>
-              <Link to="/reports/official-updates">
-                <FileText className="mr-2 h-4 w-4" />
-                View Updates
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Submit New Report</CardTitle>
-            <CardDescription>Report a situation or offer assistance</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button className="w-full" asChild>
-              <Link to="/reports/create">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Report
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
       </div>
 
       {/* Filters */}
@@ -320,7 +266,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {ALL_TAGS.map(tag => (
+          {allTags.map(tag => (
             <Badge
               key={tag}
               variant={selectedTags.includes(tag) ? 'default' : 'outline'}
@@ -338,7 +284,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {['verified', 'pending', 'unverified'].map(status => (
+          {['VERIFIED', 'PENDING', 'UNVERIFIED'].map(status => (
             <Badge
               key={status}
               variant={selectedStatus === status ? 'default' : 'outline'}
@@ -348,7 +294,7 @@ export default function ReportsPage() {
               )}
               onClick={() => toggleStatus(status)}
             >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+              {status.charAt(0) + status.slice(1).toLowerCase()}
             </Badge>
           ))}
         </div>
@@ -366,15 +312,15 @@ export default function ReportsPage() {
             <div className="relative">
               {/* Status indicator */}
               <div
-                className={`absolute top-0 left-0 w-1 h-full ${getVerificationColor(report.verification_status)}`}
+                className={`absolute top-0 left-0 w-1 h-full ${getVerificationColor(report.verificationStatus)}`}
               ></div>
 
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row gap-4">
-                  {report.image_url && (
+                  {report.imageUrl && (
                     <div className="md:w-1/4 flex-shrink-0">
                       <img
-                        src={report.image_url}
+                        src={report.imageUrl}
                         alt="Report image"
                         className="rounded-md w-full h-auto object-cover max-h-48"
                         onError={e => {
@@ -388,25 +334,27 @@ export default function ReportsPage() {
                   <div className="flex-grow">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center">
-                        <span className="font-medium text-foreground">@{report.user_id}</span>
+                        <span className="font-medium text-foreground">
+                          @{report.user?.username || 'Unknown'}
+                        </span>
                         <span className="mx-2 text-muted-foreground">•</span>
                         <span className="text-sm text-muted-foreground">
-                          {formatDate(report.created_at)}
+                          {formatDate(report.createdAt)}
                         </span>
                       </div>
                       <Badge
-                        variant={getVerificationBadge(report.verification_status).variant}
-                        className={getVerificationBadge(report.verification_status).className}
+                        variant={getVerificationBadge(report.verificationStatus).variant}
+                        className={getVerificationBadge(report.verificationStatus).className}
                       >
                         <AlertTriangle className="mr-1 h-3 w-3" />
-                        {report.verification_status}
+                        {report.verificationStatus}
                       </Badge>
                     </div>
 
                     <p className="mb-4">{report.content}</p>
 
                     <div className="flex flex-wrap gap-1">
-                      {report.tags.map((tag, index) => (
+                      {report.metadata?.verificationResult?.detectedObjects?.map((tag, index) => (
                         <Badge key={index} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>
@@ -419,15 +367,14 @@ export default function ReportsPage() {
               <CardFooter className="bg-muted/50 border-t px-6 py-3">
                 <div className="flex justify-between items-center w-full">
                   <span className="text-sm text-muted-foreground">
-                    Disaster ID: {report.disaster_id}
+                    Disaster ID: {report.disasterId}
                   </span>
                   <div className="flex gap-2">
-                    {' '}
                     <Button variant="outline" size="sm" asChild>
-                      <Link to={`/disasters/${report.disaster_id}`}>View Disaster</Link>
+                      <Link to={`/disasters/${report.disasterId}`}>View Disaster</Link>
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                      <Link to="/reports/verification">Verify</Link>
+                      <Link to={`/reports/verification?reportId=${report.id}`}>Verify</Link>
                     </Button>
                   </div>
                 </div>
@@ -436,7 +383,7 @@ export default function ReportsPage() {
           </Card>
         ))}
 
-        {filteredReports.length === 0 && (
+        {filteredReports.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <h3 className="text-lg font-medium mb-2">No reports found</h3>
             <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { loginUser } from '@/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import useAuth from '@/hooks/useAuth';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -14,6 +14,8 @@ export default function LoginPage() {
 
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+
+  const { login } = useAuth();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,7 +48,6 @@ export default function LoginPage() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSubmit = async e => {
     e.preventDefault();
 
@@ -54,15 +55,17 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      const result = await loginUser({
+      const success = await login({
         username: formData.username,
         password: formData.password,
       });
 
-      if (result.success) {
+      console.log('success data', success);
+
+      if (success) {
         navigate(from, { replace: true });
       } else {
-        setErrors({ form: result.error || 'Invalid credentials' });
+        setErrors({ form: 'who knows' });
       }
     } catch (err) {
       console.error(err);
